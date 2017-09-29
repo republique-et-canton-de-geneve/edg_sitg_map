@@ -1,0 +1,8 @@
+name = SITG MAP
+description = Provides Map SITG for drupal content
+core = 7.x
+version = 7.x-1.0
+package = "Etat de Geneve"
+dependencies[] = token
+dependencies[] = token_filter
+dependencies[] = chr

@@ -1,0 +1,29 @@
+/*
+ * Css pour affichage de la recherche d'adresse dans la boite de dialogue CKEditor
+ */
+
+#idpadr_popup {
+    position:fixed;
+    width:450px;
+    height:200px;
+    overflow: auto;
+    background-color: white;
+}
+
+#idpadr_popup p {
+    padding: 3px;
+}
+
+#idpadr_popup p:hover {
+    background-color:#00aadf;
+    color:white;
+    cursor:pointer;
+}
+
+#idpadr_res {
+    width:50%;
+}
+
+#idpadr_res p {
+    padding: 5px;
+}

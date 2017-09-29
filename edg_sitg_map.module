@@ -1,0 +1,225 @@
+<?php
+
+/* Constantes */
+
+define('SITG_WEBMAP_URL', 'https://demo.ge.ch/geoportail/CarteGE/?webmap=');
+define('SITG_IDADRESSE_URL', 'https://demo.ge.ch/geoportail/CarteGE/?webmap=4109a78487e84e72a6e8399b49e1f0a3');
+define('SITG_LATLONG_URL', 'https://demo.ge.ch/geoportail/CarteGE/?webmap=4109a78487e84e72a6e8399b49e1f0a3');
+define('SITG_APPID_URL', 'https://sitg.maps.arcgis.com/apps/Minimalist/index.html?appid=');
+
+define('SITG_PARAM_WEBMAP_URL', '&zoom=true&scale=true&disable_scroll=true');
+define('SITG_PARAM_IDADRESSE_URL', '&maponly=true&disable_scroll=true');
+define('SITG_PARAM_LATLONG_URL', '&maponly=true&disable_scroll=true');
+define('SITG_PARAM_APPID_URL', '&maponly=true&disable_scroll=true');
+
+define('SITG_CSS_WEBMAP_URL', 'SITG_webmap');
+define('SITG_CSS_IDADRESSE_URL', 'SITG_idadresse');
+define('SITG_CSS_LATLONG_URL', 'SITG_latlong');
+define('SITG_CSS_APPID_URL', 'SITG_appid');
+
+define('SITG_IFRAME_HEIGHT_HIGH', '610'); // en px
+define('SITG_IFRAME_HEIGHT_LOW', '320'); // en px
+
+define('SITG_QUERY_IDADRESSE_URL', 'https://ge.ch/ags1/rest/services/SITG/localisation_dynamique/MapServer/0');
+
+/**
+ * Implements hook_menu().
+ *
+ * @param $items
+ *
+ * @return
+ *   retourne des éléments de menu.
+ *
+ */
+function edg_sitg_map_menu() {
+  // Pages d'administration du module
+  $items['admin/config/edg/sitg_map'] = array(
+    'title' => t('Configuration carte SITG'),
+    'description' => t('Configuration spécifique au module SITG MAP'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('_edg_sitg_map_admin_form'),
+    'access arguments' => array('admin SITG MAP'),
+    'file' => 'edg_sitg_map.admin.inc',
+	'type' => MENU_NORMAL_ITEM,
+    'file path' => drupal_get_path('module', 'edg_sitg_map'),
+  );
+
+  return $items;
+}
+
+
+/**
+ * Implements hook_permission().
+ * Provides some specific permissions for simplemaps blocks.
+ */
+function edg_sitg_map_permission() {
+  return array(
+    'admin SITG MAP' => array(
+      'title' => t('Administer SITG maps.'),
+      'description' => t('Allow users to access the SITG maps configuration.'),
+    ),
+  );
+}
+
+/**
+ * hook_tokens
+ * @param $type
+ * @param $tokens
+ * @param array $data
+ * @param array $options
+ * @return array
+ */
+function edg_sitg_map_tokens($type, $tokens, array $data = array(), array $options = array()) {
+  $replacements = array();
+  if ($type == 'sitg') {
+    foreach ($tokens as $name => $original) {
+      $nameArray = explode(":", $name);
+      if ($nameArray[0] == 'petite') {
+        $tailleCarte = variable_get('sitg_iframe_height_low', SITG_IFRAME_HEIGHT_LOW);
+      }
+      else {
+        $tailleCarte = variable_get('sitg_iframe_height_high', SITG_IFRAME_HEIGHT_HIGH);
+      }
+      switch ($nameArray[1]) {
+        case 'webmap':
+          //http://server.arcgis.com/fr/portal/latest/use/app-url-parameters.htm
+          //ex https://demo.ge.ch/geoportail/CarteGE/?webmap=4109a78487e84e72a6e8399b49e1f0a3&marker=6.1667;46.2;test1;Race%20start%20and%20finish;test2;test3
+          //ex https://sitg.maps.arcgis.com/home/webmap/viewer.html?webmap=3f7d55d12fcf44f39e124dfb7af2e826
+          //ex https://sitg.maps.arcgis.com/home/webmap/viewer.html?webmap=a36a803a2b6f4f638bb05c92a52c4266
+          if (isset ($nameArray[2])) { //Si l'id  de la webmap existe :
+            $name = '<iframe class="' . variable_get('url_sitg_css_webmap', SITG_CSS_WEBMAP_URL) . '" style="width:100%;height:' . $tailleCarte . 'px;"   frameborder="0"   scrolling="no"   '
+              . 'marginheight="0"   marginwidth="0"   title="Carte SITG" '
+              . 'src="' . variable_get('url_sitg_webmap', SITG_WEBMAP_URL) . $nameArray[2]
+              . variable_get('url_sitg_param_webmap', SITG_PARAM_WEBMAP_URL) . '" >'
+              . '</iframe>';
+            $replacements[$original] = $name;
+          }
+          break;
+
+        case 'appid':
+          //ex :https://sitg.maps.arcgis.com/apps/Minimalist/index.html?appid=37b5e885fb574d9ca024379af36fcfb0
+          //ex :https://sitg.maps.arcgis.com/apps/Minimalist/index.html?appid=b30105ea5eda4a6a89a520d432646fb4
+          //ex :http://sitg.maps.arcgis.com/apps/Minimalist/index.html?appid=6ce431b67fbb410198de254e36da78de
+          if (isset ($nameArray[2])) { //Si l'id locadresse existe :
+            $parametre_appId = '&';
+            if (isset($nameArray[3])) { // si un paramétre est défini :
+              $parametre_appId .= $nameArray[3];
+            }
+
+            $name = '<iframe class="' . variable_get('url_sitg_css_idadresse', SITG_CSS_IDADRESSE_URL) . '" style="width:100%;height:' . $tailleCarte . 'px;"   frameborder="0"   scrolling="no"   '
+              . 'marginheight="0"   marginwidth="0"   title="Carte SITG" '
+              . 'src="' . variable_get('url_sitg_appid', SITG_APPID_URL) . $nameArray[2]
+              . variable_get('url_sitg_param_appid', SITG_PARAM_APPID_URL) . $parametre_appId . '" > </iframe>';
+            $replacements[$original] = $name;
+          }
+          break;
+
+        case 'idpadr':
+          if (isset ($nameArray[2])) {
+            //ex conf http://geodesy.geo.admin.ch/reframe/lv03towgs84?easting=600000&northing=200000&altitude=550.0%0b&format=json
+            //ex https://ge.ch/sitgags2/rest/services/Utilities/Geometry/GeometryServer/project?inSR=2056&outSR=4326&geometries={"geometryType"%3A"esriGeometryPoint"%2C"geometries"%3A[{"x"%3A2503066.21%2C"y"%3A1118508.93}]}&f=pjson
+            //ex [sitg:idpadr:404160056:point sur la carte:description dans la bulle d'aide]
+
+			//Transform gps point from vgs84 - transformation CH1903_To_WGS_1984_1
+            $request = chr_curl_http_request("https://ge.ch/ags1/rest/services/SITG/LOCALISATION/MapServer/2/query?text=" . $nameArray[2] . "&f=pjson");
+            $data = drupal_json_decode($request->data);
+            if (isset($data['features'][0]['geometry'])) {
+              $x = $data['features'][0]['geometry']['x'];
+              $y = $data['features'][0]['geometry']['y'];
+              $request = chr_curl_http_request('https://ge.ch/sitgags2/rest/services/Utilities/Geometry/GeometryServer/project?inSR=2056&outSR=4326&geometries={"geometryType":"esriGeometryPoint","geometries":[{"x":' . $x . ',"y":' . $y . '}]}&f=pjson');
+              $data = drupal_json_decode($request->data);
+              $lat = $data['geometries'][0]['x'];
+              $long = $data['geometries'][0]['y'];
+            }
+
+            $name = '<iframe class="' . variable_get('url_sitg_css_idadresse', SITG_CSS_IDADRESSE_URL) . '" style="width:100%;height:' . $tailleCarte . 'px;"   frameborder="0"   scrolling="no"   '
+              . 'marginheight="0"   marginwidth="0"   title="Carte SITG" '
+              . 'src="' . variable_get('url_sitg_latlong', SITG_LATLONG_URL) . '&marker=' . $lat . ';' . $long . ';test2;' . $nameArray[4] . ';;' . $nameArray[3] . ''
+              . variable_get('url_sitg_param_latlong', SITG_PARAM_LATLONG_URL) . '" > </iframe>';
+            $replacements[$original] = $name;
+          }
+          break;
+
+        case 'latlong':
+          if (isset ($nameArray[2]) && isset ($nameArray[3])) { //Si lat et long existent
+            //ex : [sitg:latlong:6.1667:46.2:point sur la carte:description dans la bulle d'aide]
+            //https://demo.ge.ch/geoportail/CarteGE/?webmap=4109a78487e84e72a6e8399b49e1f0a3&marker=6.1667;46.2;test1;Race%20start%20and%20finish;test2;test3
+            $name = '<iframe class="' . variable_get('url_sitg_css_idadresse', SITG_CSS_IDADRESSE_URL) . '" style="width:100%;height:' . $tailleCarte . 'px;"   frameborder="0"   scrolling="no"   '
+              . 'marginheight="0"   marginwidth="0"   title="Carte SITG" '
+              . 'src="' . variable_get('url_sitg_latlong', SITG_LATLONG_URL) . '&marker=' . $nameArray[2] . ';' . $nameArray[3] . ';test2;' . $nameArray[5] . ';;' . $nameArray[4] . ''
+              . variable_get('url_sitg_param_latlong', SITG_PARAM_LATLONG_URL) . '" > </iframe>';
+            $replacements[$original] = $name;
+          }
+          break;
+
+        default :
+          break;
+      }
+    }
+    return $replacements;
+  }
+}
+
+/**
+ * Implements hook_token_info().
+ */
+function edg_sitg_map_token_info() {
+
+  $site['webmap'] = array(
+    'name' => t('webmap'),
+    'description' => t('SITG ID webmap'),
+  );
+
+  $site['appid'] = array(
+    'name' => t('appid'),
+    'description' => t('SITG ID appid'),
+  );
+
+  $site['idpadr'] = array(
+    'name' => t('idpadr'),
+    'description' => t('SITG ID adresse'),
+  );
+
+  $site['latlong'] = array(
+    'name' => t('latlong'),
+    'description' => t('SITG latitude longitude'),
+  );
+
+  return array(
+    'tokens' => array(
+      'sitg' => $site,
+    ),
+  );
+}
+
+/**
+ * hook_ckeditor_plugin
+ * @return array
+ */
+function edg_sitg_map_ckeditor_plugin() {
+
+  $module_path = drupal_get_path('module', 'edg_sitg_map');
+  $plugins = array();
+
+  $plugins['sitg'] = array(
+    'name' => 'sitg',
+    'desc' => t('CKEditor: SITG plugin'),
+    'buttons' => array(
+      'sitg_button' => array(
+        'icon' => 'icons/sitg-icon.png',
+        'label' => t('Carte SITG'),
+      ),
+    ),
+    'load' => TRUE,
+    'path' => $module_path . '/ckeditor-plugins/sitg/',
+    'default' => 't'
+  );
+
+  //transfert la variable url_sitg_query_idadresse vers le javascript
+  $my_settings = array(
+    'idpadrQuery' => variable_get('url_sitg_query_idadresse', SITG_QUERY_IDADRESSE_URL),
+  );
+  drupal_add_js(array('edgSitgMap' => $my_settings), 'setting');
+
+  return $plugins;
+}
